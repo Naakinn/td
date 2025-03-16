@@ -1,0 +1,7 @@
+# build, caches
+.cache/
+build/
+td
+# local configs, dbs
+compile_commands.json
+data.db
