@@ -6,12 +6,8 @@
 
 int handle_rc(int rc, char* errmsg) {
     if (rc != SQLITE_OK) {
-        if (errmsg != NULL) {
-            error("sqlite3 error: %s\n", errmsg);
-            sqlite3_free(errmsg);
-        } else {
-            error("sqlite3 error (error message is not provided)\n");
-        }
+		error("sqlite3 error: %s, rc = %d\n", errmsg != NULL ? errmsg : "NULL", rc);
+		sqlite3_free(errmsg);
         return 1;
     }
     return 0;
@@ -27,8 +23,8 @@ int list_callback(void* UNUSED(arg), int colnr, char** columns,
 }
 
 int list_tasks(sqlite3* db) {
-    char* sql = "SELECT * from tasks;";
-    char* errmsg;
+    char* sql = "SELECT * FROM tasks;";
+    char* errmsg = NULL;
     int rc = sqlite3_exec(db, sql, list_callback, NULL, &errmsg);
     if (handle_rc(rc, errmsg)) return 1;
     return 0;
@@ -50,8 +46,8 @@ int info_task(sqlite3* db, const char* s) {
     // TODO: handle id range, for e.g. 1-3
     int id = str_toi(s);
     char sql[SQL_SIZE] = {0};
-    sprintf(sql, "SELECT * from tasks WHERE id=%d", id);
-    char* errmsg;
+    sprintf(sql, "SELECT * FROM tasks WHERE id=%d", id);
+    char* errmsg = NULL;
     int rc = sqlite3_exec(db, sql, info_callback, NULL, &errmsg);
     if (handle_rc(rc, errmsg)) return 1;
     return 0;

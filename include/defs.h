@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define PASS
+#define PASS  // python-like pass operator
 #define LINE_SIZE 20
 #define SQL_SIZE 200
 

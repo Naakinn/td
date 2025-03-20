@@ -7,8 +7,6 @@
 void str_readline(char* buf, const int limit, const char* prompt);
 bool str_isempty(const char* s);
 bool str_isnumeric(const char* s);
-size_t str_len(const char* buf);
 int str_toi(const char* s);
-int str_cmp(const char* restrict s1, const char* restrict s2);
 
 #endif

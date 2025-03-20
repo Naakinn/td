@@ -1,5 +1,6 @@
 #include "str.h"
 
+#include <string.h>
 #include <stdio.h>
 
 void str_readline(char* buf, int limit, const char* prompt) {
@@ -13,15 +14,9 @@ void str_readline(char* buf, int limit, const char* prompt) {
     fflush(stdin);
 }
 
-size_t str_len(const char* s) {
-    size_t len = 0;
-    while (s[len] != '\0') len++;
-    return len;
-}
-
 bool str_isempty(const char* s) {
     if (s == NULL) return true;
-    for (size_t i = 0; i < str_len(s); ++i) {
+    for (size_t i = 0; i < strlen(s); ++i) {
         if (s[i] >= '!') {  // first non-blank ascii char
             return false;
         }
@@ -30,7 +25,7 @@ bool str_isempty(const char* s) {
 }
 bool str_isnumeric(const char* s) {
     if (s == NULL) return false;
-    for (size_t i = 0; i < str_len(s); ++i) {
+    for (size_t i = 0; i < strlen(s); ++i) {
         if (s[i] <= '/' || s[i] >= ':') {  // not a digit
             return false;
         }
@@ -40,17 +35,8 @@ bool str_isnumeric(const char* s) {
 
 int str_toi(const char* s) {
     int res = 0;
-    for (size_t i = 0; i < str_len(s); ++i) {
+    for (size_t i = 0; i < strlen(s); ++i) {
         res = res * 10 + (s[i] - '0');
     }
     return res;
-}
-
-int str_cmp(const char* restrict s1, const char* restrict s2) {
-    size_t len = str_len(s1);
-    if (len != str_len(s2)) return false;
-    for (size_t i = 0; i < len; ++i) {
-        if (s1[i] != s2[i]) return false;
-    }
-    return true;
 }
