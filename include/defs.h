@@ -5,8 +5,9 @@
 #include <stddef.h>
 
 #define PASS  // python-like pass operator
-#define LINE_SIZE 20
-#define SQL_SIZE 200
+#define LINE_SIZE 40
+#define LINE_SIZE_EXT 200
+#define SQL_SIZE (LINE_SIZE_EXT + LINE_SIZE + 10)
 
 #ifdef __GNUC__
 #define UNUSED(x) UNUSED_##x __attribute__((__unused__))

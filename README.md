@@ -22,6 +22,6 @@ to build `td`.
 ### Goals
 - [x] `info` command
 - [x] per-user database
-- [ ] `push` command
+- [x] `push` command
 - [ ] `amend` command
 - [ ] `drop` command
