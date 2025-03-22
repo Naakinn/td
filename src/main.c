@@ -35,27 +35,50 @@ void push(sqlite3* db) {
     char note[LINE_SIZE_EXT] = {0};
     while (true) {
         str_readline(name, LINE_SIZE, "Enter a name(skip to abort): ");
-		if (str_isempty(name)) break;
+        if (str_isempty(name)) break;
         str_readline(note, LINE_SIZE_EXT, "Enter a note(skip for NULL): ");
-		
+
         if (push_task(db, name, note)) {
-			error("cannot create task, please check your name and note\n");
-			error("allowed characters are a-z,A-Z, comma, period, space\n");
+            error("cannot create task, please check your name and note\n");
+            error("allowed characters are a-z,A-Z, comma, period, space\n");
         } else {
-			break;
-		}
+            break;
+        }
     }
 }
 
 void info(sqlite3* db) {
     char buf[LINE_SIZE] = {0};
     while (true) {
-        str_readline(buf, LINE_SIZE, "Task id: ");
+        str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
+        if (str_isempty(buf)) break;
         if (info_task(db, buf)) {
             error("invalid id '%s'\n", buf);
         } else
             break;
     }
+}
+
+void drop(sqlite3* db) {
+    char buf[LINE_SIZE] = {0};
+    while (true) {
+        str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
+        if (str_isempty(buf)) break;
+        if (drop_task(db, buf)) {
+            error("invalid id '%s'\n", buf);
+        } else
+            break;
+    }
+}
+
+void help() {
+	printf("Usage: td [COMMAND]\n");
+	printf("Simple ToDo task manager. With no command lists all tasks.\n");
+	printf("COMMANDS:\n");
+	printf("\t push - Pushes a task to database. Asks user for name and note.\n");
+	printf("\t info - Gets information about specific task, such as note.\n");
+	printf("\t drop - Deletes task.\n");
+	printf("\t help - Displays this help page.\n");
 }
 
 void do_input(int argc, char** argv, sqlite3* db) {
@@ -71,7 +94,9 @@ void do_input(int argc, char** argv, sqlite3* db) {
     } else if (strcmp(command, "amend") == 0) {
         PASS
     } else if (strcmp(command, "drop") == 0) {
-        PASS
+        drop(db);
+    } else if (strcmp(command, "help") == 0) {
+        help();
     } else {
         error("unrecognized command '%s'\n", command);
     }

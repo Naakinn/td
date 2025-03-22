@@ -1,3 +1,5 @@
+#include "task.h"
+
 #include <stdio.h>
 
 #include "defs.h"
@@ -73,6 +75,17 @@ int push_task(sqlite3* db, const char* name, const char* note) {
     char sql[SQL_SIZE] = {0};
     sprintf(sql, "INSERT INTO tasks (name, note) VALUES ('%s', '%s');", name,
             has_note ? note : "NULL");
+    char* errmsg = NULL;
+    int rc = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
+    if (handle_rc(rc, errmsg)) return 1;
+    return 0;
+}
+
+int drop_task(sqlite3* db, const char* id) {
+    if (!str_isnumeric(id)) return 1;
+
+    char sql[SQL_SIZE] = {0};
+    sprintf(sql, "DELETE FROM tasks WHERE id=%s;", id);
     char* errmsg = NULL;
     int rc = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
     if (handle_rc(rc, errmsg)) return 1;
