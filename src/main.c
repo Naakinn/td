@@ -31,8 +31,8 @@ int db_init(sqlite3** db, const char* db_name) {
 }
 
 void push(sqlite3* db) {
-    char name[LINE_SIZE] = {0};
-    char note[LINE_SIZE_EXT] = {0};
+    char name[LINE_SIZE + 1] = {0};
+    char note[LINE_SIZE_EXT + 1] = {0};
     while (true) {
         str_readline(name, LINE_SIZE, "Enter a name(skip to abort): ");
         if (str_isempty(name)) break;
@@ -48,7 +48,7 @@ void push(sqlite3* db) {
 }
 
 void info(sqlite3* db) {
-    char buf[LINE_SIZE] = {0};
+    char buf[LINE_SIZE + 1] = {0};
     while (true) {
         str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
         if (str_isempty(buf)) break;
@@ -60,7 +60,7 @@ void info(sqlite3* db) {
 }
 
 void drop(sqlite3* db) {
-    char buf[LINE_SIZE] = {0};
+    char buf[LINE_SIZE + 1] = {0};
     while (true) {
         str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
         if (str_isempty(buf)) break;
@@ -72,13 +72,44 @@ void drop(sqlite3* db) {
 }
 
 void help() {
-	printf("Usage: td [COMMAND]\n");
-	printf("Simple ToDo task manager. With no command lists all tasks.\n");
-	printf("COMMANDS:\n");
-	printf("\t push - Pushes a task to database. Asks user for name and note.\n");
-	printf("\t info - Gets information about specific task, such as note.\n");
-	printf("\t drop - Deletes task.\n");
-	printf("\t help - Displays this help page.\n");
+    // clang-format off
+    printf("Usage: td [COMMAND]\n");
+    printf("Simple ToDo task manager. With no command lists all tasks.\n");
+    printf("COMMANDS:\n");
+    printf("\t push - Pushes a task to database. Asks user for name and note.\n");
+    printf("\t info - Gets information about specific task, such as note.\n");
+    printf("\t drop - Deletes task.\n");
+    printf("\t help - Displays this help page.\n");
+    // clang-format on
+}
+
+void amend(sqlite3* db) {
+    char choice[2] = {0};
+    char id[LINE_SIZE + 1] = {0};
+    while (true) {
+        str_readline(id, LINE_SIZE, "Task id: ");
+        if (str_isempty(id)) break;
+        str_readline(choice, 1, "What to change: n(A)me/n(O)te: ");
+        if (str_isempty(choice)) break;
+
+        if (choice[0] == 'a' || choice[0] == 'A') {
+            char name[LINE_SIZE + 1] = {0};
+            str_readline(name, LINE_SIZE, "New name: ");
+            if (amend_task(db, AMEND_NAME, id, name)) {
+                error("cannot amend task '%s'", id);
+            } else
+                break;
+
+        } else if (choice[0] == 'o' || choice[0] == 'O') {
+            char note[LINE_SIZE_EXT + 1] = {0};
+            str_readline(note, LINE_SIZE_EXT, "New note: ");
+            if (amend_task(db, AMEND_NOTE, id, note)) {
+                error("cannot amend task '%s'", id);
+            } else
+                break;
+        } else
+            error("invalid choice");
+    }
 }
 
 void do_input(int argc, char** argv, sqlite3* db) {
@@ -92,7 +123,7 @@ void do_input(int argc, char** argv, sqlite3* db) {
     } else if (strcmp(command, "info") == 0) {
         info(db);
     } else if (strcmp(command, "amend") == 0) {
-        PASS
+        amend(db);
     } else if (strcmp(command, "drop") == 0) {
         drop(db);
     } else if (strcmp(command, "help") == 0) {

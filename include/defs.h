@@ -9,6 +9,9 @@
 #define LINE_SIZE_EXT 200
 #define SQL_SIZE (LINE_SIZE_EXT + LINE_SIZE + 10)
 
+#define AMEND_NAME 2
+#define AMEND_NOTE 3
+
 #ifdef __GNUC__
 #define UNUSED(x) UNUSED_##x __attribute__((__unused__))
 #else

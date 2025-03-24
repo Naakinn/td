@@ -7,4 +7,6 @@ int list_tasks(sqlite3* db);
 int info_task(sqlite3* db, const char* id);
 int push_task(sqlite3* db, const char* name, const char* note);
 int drop_task(sqlite3* db, const char* id);
+int amend_task(sqlite3* db, int __mode, const char* id, const char* s);
+
 #endif
