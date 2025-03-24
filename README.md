@@ -24,6 +24,6 @@ Just run `td help` or check it in [source](https://github.com/Naakinn/td/blob/ma
 - [x] `info` command
 - [x] per-user database
 - [x] `push` command
-- [ ] `amend` command
+- [x] `amend` command
 - [x] `help` command
 - [x] `drop` command

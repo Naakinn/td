@@ -79,6 +79,7 @@ void help() {
     printf("\t push - Pushes a task to database. Asks user for name and note.\n");
     printf("\t info - Gets information about specific task, such as note.\n");
     printf("\t drop - Deletes task.\n");
+    printf("\t amend - Amend a task's name or note.\n");
     printf("\t help - Displays this help page.\n");
     // clang-format on
 }
