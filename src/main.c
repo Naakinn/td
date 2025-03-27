@@ -40,7 +40,9 @@ void push(sqlite3* db) {
 
         if (push_task(db, name, note)) {
             error("cannot create task, please check your name and note\n");
-            error("allowed characters are a-z,A-Z, comma, period, space\n");
+            error(
+                "allowed characters are a-z, A-Z, comma, period, space, "
+                "ampersand and !\n");
         } else {
             break;
         }
@@ -137,13 +139,14 @@ void do_input(int argc, char** argv, sqlite3* db) {
 int main(int argc, char** argv) {
     sqlite3* db = NULL;
 
-    // c and strings...
+    // strlen("/.td") = 4
+    // strlen("/td_data.db") = 11
+    // also +1 for \0
     const char* home = getenv("HOME");
-    char* db_path = calloc(strlen(home) + strlen("/.td") + 1, sizeof(char));
+    char* db_path = calloc(strlen(home) + 5, sizeof(char));
     strcat(db_path, home);
     strcat(db_path, "/.td");
-    char* db_pathname =
-        calloc(strlen(db_path) + strlen("/td_data.db") + 1, sizeof(char));
+    char* db_pathname = calloc(strlen(db_path) + 12, sizeof(char));
     strcpy(db_pathname, db_path);
     strcat(db_pathname, "/td_data.db");
 
