@@ -24,9 +24,5 @@ Then compile `td` using `make EXTERNAL_SQLITE3=ON`
 Just run `td help` or check it in [source](https://github.com/Naakinn/td/blob/main/src/main.c#L74)
 
 ### Goals
-- [x] `info` command
-- [x] per-user database
-- [x] `push` command
-- [x] `amend` command
-- [x] `help` command
-- [x] `drop` command
+- [ ] Use cli args with commands
+- [ ] Local .td database

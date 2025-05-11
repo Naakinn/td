@@ -18,8 +18,11 @@
 #define UNUSED(x) UNUSED_##x
 #endif
 
+#ifndef NDEBUG
 #define error(format, ...)                                          \
     fprintf(stderr, "td: (%s:%d) " format, __FILE_NAME__, __LINE__, \
             ##__VA_ARGS__)
-
+#else
+#define error(format, ...) fprintf(stderr, "td: " format, ##__VA_ARGS__)
+#endif
 #endif

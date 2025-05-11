@@ -5,20 +5,20 @@ BUILD_DIR = build
 INC_DIR = include
 CURRENT_MAKEFILE := $(lastword $(MAKEFILE_LIST))
 
+INCFLAGS := -I./include
+CFLAGS := -Wall -Werror -Wextra -std=c99 -MMD
+SRCS := $(shell find $(SRC_DIR) -type f -name '*.c')
+OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRCS))
+DEPS := $(OBJS:%.o=%.d)
+
 EXTERNAL_SQLITE3 ?= OFF
 ifneq ($(EXTERNAL_SQLITE3), ON)
 	LDFLAGS := -lsqlite3
 endif
 
-INCFLAGS := -I./include
-CFLAGS := -Wall -Wextra -std=c99 -MMD
-
-SRCS := $(shell find $(SRC_DIR) -type f -name '*.c')
-OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRCS))
-DEPS := $(OBJS:%.o=%.d)
-
-all: debug
+all: release
 debug: CFLAGS += -g
+release: CFLAGS += -DNDEBUG
 	
 debug: $(TARGET_EXEC)
 release: $(TARGET_EXEC)
