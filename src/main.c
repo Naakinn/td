@@ -115,55 +115,99 @@ void amend(sqlite3* db) {
     }
 }
 
-void do_input(int argc, char** argv, sqlite3* db) {
+Command parse_args(int argc, char** argv) {
     if (argc < 2) {
-        list_tasks(db);
-        return;
+        return ListCmd;
     }
     char* command = argv[1];
     if (strcmp(command, "push") == 0) {
-        push(db);
+        return PushCmd;
     } else if (strcmp(command, "info") == 0) {
-        info(db);
+        return InfoCmd;
     } else if (strcmp(command, "amend") == 0) {
-        amend(db);
+        return AmendCmd;
     } else if (strcmp(command, "drop") == 0) {
-        drop(db);
+        return DropCmd;
     } else if (strcmp(command, "help") == 0) {
-        help();
+        return HelpCmd;
     } else {
         error("unrecognized command '%s'\n", command);
     }
+    return NullCmd;
+}
+
+int locate_db(char** db_pathname) {
+    int rc = 0;
+    const char* home = getenv("HOME");
+    char* td_dir = "/.td";
+    char* td_db = "/td_data.db";
+    *db_pathname =
+        calloc(strlen(home) + strlen(td_dir) + strlen(td_db) + 1, sizeof(char));
+    char* db_dir = calloc(strlen(home) + strlen(td_dir) + 1, sizeof(char));
+    if (db_pathname == NULL || db_dir == NULL) {
+        error("could not allocate memory\n");
+        defer(rc, 1);
+    }
+    strncat(*db_pathname, home, strlen(home));
+    strncat(*db_pathname, td_dir, strlen(td_dir));
+    strncat(*db_pathname, td_db, strlen(td_db));
+
+    strncat(db_dir, home, strlen(home));
+    strncat(db_dir, td_dir, strlen(td_dir));
+
+    struct stat st = {0};
+    if (stat(db_dir, &st) == -1) {
+        int rc = mkdir(db_dir, S_IRWXU);
+        if (rc != 0) {
+            error("could not create directory %s\n", db_dir);
+            defer(rc, 1);
+        }
+    }
+defer:
+    if (db_dir != NULL) free(db_dir);
+    return rc;
+}
+
+int dispatch_command(Command cmd) {
+    if (cmd == HelpCmd) {
+        help();
+        return 0;
+    }
+    int result = 0;
+    sqlite3* db = NULL;
+    char* db_pathname = NULL;
+    if (locate_db(&db_pathname)) defer(result, 1);
+    if (db_init(&db, db_pathname)) defer(result, 1);
+
+    switch (cmd) {
+        case ListCmd:
+            list_tasks(db);
+            break;
+        case InfoCmd:
+            info(db);
+            break;
+        case PushCmd:
+            push(db);
+            break;
+        case AmendCmd:
+            amend(db);
+            break;
+        case DropCmd:
+            drop(db);
+            break;
+        default:
+            error("unexpected command type\n");
+            defer(result, 1);
+    }
+defer:
+    if (db != NULL) sqlite3_close(db);
+    if (db_pathname != NULL) free(db_pathname);
+    return result;
 }
 
 int main(int argc, char** argv) {
-    sqlite3* db = NULL;
-
-    // strlen("/.td") = 4
-    // strlen("/td_data.db") = 11
-    // also +1 for \0
-    const char* home = getenv("HOME");
-    char* db_path = calloc(strlen(home) + 5, sizeof(char));
-    strcat(db_path, home);
-    strcat(db_path, "/.td");
-    char* db_pathname = calloc(strlen(db_path) + 12, sizeof(char));
-    strcpy(db_pathname, db_path);
-    strcat(db_pathname, "/td_data.db");
-
-    // check for ~/.td directory
-    struct stat st = {0};
-    if (stat(db_path, &st) == -1) {
-        int rc = mkdir(db_path, S_IRWXU);
-        if (rc != 0) {
-            error("could not create directory %s\n", db_path);
-            return 1;
-        }
-    }
-
-    if (db_init(&db, db_pathname)) return 1;
-    do_input(argc, argv, db);
-    sqlite3_close(db);
-    free(db_path);
-    free(db_pathname);
+    Command cmd = parse_args(argc, argv);
+    if (cmd == NullCmd) return 1;
+    if (dispatch_command(cmd)) return 1;
     return 0;
 }
