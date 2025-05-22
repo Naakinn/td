@@ -31,8 +31,7 @@ typedef enum {
 
 typedef struct {
     eCommandType type;
-    char** argv;
-    size_t argc;
+    char* arg;
 } Command;
 
 // error output

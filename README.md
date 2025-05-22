@@ -21,8 +21,16 @@ You can run `setup_external.sh` script to download sqlite3 source code.
 Then compile `td` using `make EXTERNAL_SQLITE3=ON`
 
 ### Getting help
-Just run `td help` or check it in [source](https://github.com/Naakinn/td/blob/main/src/main.c#L74)
-
+```
+Usage: td [options]
+Simple ToDo task manager. With no command lists all tasks.
+COMMANDS:
+   -p --push Push a task to database.
+   -i --info <ID> Get information about specific task, such as note.
+   -d --drop <ID> Delete task.
+   -a --amend <ID> Amend a task's name or note.
+   -h --help  Display this help page.
+```
 ### Goals
-- [ ] Use cli args with commands
+- [x] Use cli args with commands
 - [ ] Local .td database

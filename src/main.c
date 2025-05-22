@@ -1,3 +1,4 @@
+#include <getopt.h>
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +8,17 @@
 #include "defs.h"
 #include "str.h"
 #include "task.h"
+
+static struct option long_options[] = {
+    // TODO future cli args
+    // {"no-confirm", no_argument, 0, 'n'},
+    // {"verbose", no_argument, 0, 'v'},
+    // {"silent", no_argument, 0, 's'},
+    {"help", no_argument, 0, 'h'},       {"push", no_argument, 0, 'p'},
+    {"info", required_argument, 0, 'i'}, {"amend", required_argument, 0, 'a'},
+    {"drop", required_argument, 0, 'd'}, {0, 0, 0, 0}};
+
+static const char* short_options = "hpi:d:a:";
 
 int db_init(sqlite3** db, const char* db_name) {
     int rc = sqlite3_open(db_name, db);
@@ -49,63 +61,22 @@ void push(sqlite3* db) {
     }
 }
 
-void info(sqlite3* db, Command* cmd) {
-    if (cmd->argc == 1) {
-        info_task(db, cmd->argv[0]);
-    } else {
-        char buf[LINE_SIZE + 1] = {0};
-        while (true) {
-            str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
-            if (str_isempty(buf)) break;
-            if (info_task(db, buf)) {
-                error("invalid id '%s'\n", buf);
-            } else
-                break;
-        }
-    }
-}
-
-void drop(sqlite3* db, Command* cmd) {
-    if (cmd->argc == 1) {
-        drop_task(db, cmd->argv[0]);
-    } else {
-        char buf[LINE_SIZE + 1] = {0};
-        while (true) {
-            str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
-            if (str_isempty(buf)) break;
-            if (drop_task(db, buf)) {
-                error("invalid id '%s'\n", buf);
-            } else
-                break;
-        }
-    }
-}
-
 void help() {
     // clang-format off
-    printf("Usage: td [COMMAND [COMMAND_OPTIONS]]\n");
+    printf("Usage: td [options]\n");
     printf("Simple ToDo task manager. With no command lists all tasks.\n");
     printf("COMMANDS:\n");
-    printf("FOR FURTHER READING: when ID parameter is not specified, td asks user for a task ID.\n");
-    printf("\t push [ID] - Pushes a task to database.\n");
-    printf("\t info [ID] - Gets information about specific task, such as note.\n");
-    printf("\t drop [ID] - Deletes task.\n");
-    printf("\t amend [ID] - Amend a task's name or note.\n");
-    printf("\t help - Displays this help page.\n");
+    printf("\t -p --push Push a task to database.\n");
+    printf("\t -i --info <ID> Get information about specific task, such as note.\n");
+    printf("\t -d --drop <ID> Delete task.\n");
+    printf("\t -a --amend <ID> Amend a task's name or note.\n");
+    printf("\t -h --help  Display this help page.\n");
     // clang-format on
 }
 
 void amend(sqlite3* db, Command* cmd) {
     char choice[2] = {0};
-
-    char* id = NULL;
-    if (cmd->argc == 1)
-        id = cmd->argv[0];
-    else {
-        char buf[LINE_SIZE + 1] = {0};
-        str_readline(buf, LINE_SIZE, "Task id: ");
-        id = buf;
-    }
+    char* id = cmd->arg; 
 
     while (true) {
         str_readline(choice, 1, "What to change: n(A)me/n(O)te: ");
@@ -115,7 +86,7 @@ void amend(sqlite3* db, Command* cmd) {
             char name[LINE_SIZE + 1] = {0};
             str_readline(name, LINE_SIZE, "New name: ");
             if (amend_task(db, AMEND_NAME, id, name)) {
-                error("cannot amend task '%s'", id);
+                error("cannot amend task '%s'\n", id);
             } else
                 break;
 
@@ -123,52 +94,52 @@ void amend(sqlite3* db, Command* cmd) {
             char note[LINE_SIZE_EXT + 1] = {0};
             str_readline(note, LINE_SIZE_EXT, "New note: ");
             if (amend_task(db, AMEND_NOTE, id, note)) {
-                error("cannot amend task '%s'", id);
+                error("cannot amend task '%s'\n", id);
             } else
                 break;
         } else
-            error("invalid choice");
+            error("invalid choice\n");
     }
 }
 
 void parse_args(Command* cmd, int argc, char** argv) {
-    if (argc < 2) {
-        cmd->type = ListCmd;
-        return;
-    }
-    char* command = argv[1];
-    if (strcmp(command, "push") == 0) {
-        cmd->type = PushCmd;
-        return;
-    }
+    int c;
+    cmd->type = ListCmd;
+    while (true) {
+        c = getopt_long(argc, argv, short_options, long_options, NULL);
+        if (c == -1) break;
 
-    if (argc >= 3) {
-        cmd->argc = 1;
-        // argv[2] is id
-        cmd->argv = argv + 2;
-    } else {
-        cmd->argc = 0;
-        cmd->argv = NULL;
+        switch (c) {
+            case 'h':
+                cmd->type = HelpCmd;
+                break;
+            case 'p':
+                cmd->type = PushCmd;
+                break;
+            case 'i':
+                cmd->type = InfoCmd;
+                cmd->arg = optarg;
+                break;
+            case 'a':
+                cmd->type = AmendCmd;
+                cmd->arg = optarg;
+                break;
+            case 'd':
+                cmd->type = DropCmd;
+                cmd->arg = optarg;
+                break;
+            case '?':
+                cmd->type = NullCmd;
+                break;
+            default:
+                cmd->type = NullCmd;
+                error(
+                    "getopt returned unknown character code '%d'. please check "
+                    "your command line arguments\n",
+                    c);
+                break;
+        }
     }
-
-    if (strcmp(command, "info") == 0) {
-        cmd->type = InfoCmd;
-        return;
-    } else if (strcmp(command, "amend") == 0) {
-        cmd->type = AmendCmd;
-        return;
-    } else if (strcmp(command, "drop") == 0) {
-        cmd->type = DropCmd;
-        return;
-    } else if (strcmp(command, "help") == 0) {
-        cmd->type = HelpCmd;
-        return;
-    } else {
-        error("unrecognized command '%s'. run 'td help' to get help.\n",
-              command);
-    }
-
-    cmd->type = NullCmd;
 }
 
 int locate_db(char** db_pathname) {
@@ -219,7 +190,7 @@ int dispatch_command(Command* cmd) {
             list_tasks(db);
             break;
         case InfoCmd:
-            info(db, cmd);
+            info_task(db, cmd->arg);
             break;
         case PushCmd:
             push(db);
@@ -228,7 +199,7 @@ int dispatch_command(Command* cmd) {
             amend(db, cmd);
             break;
         case DropCmd:
-            drop(db, cmd);
+            drop_task(db, cmd->arg);
             break;
         default:
             error("unexpected command type\n");
