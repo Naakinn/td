@@ -27,6 +27,12 @@ typedef enum {
     AmendCmd,
     DropCmd,
     NullCmd,
+} eCommandType;
+
+typedef struct {
+    eCommandType type;
+    char** argv;
+    size_t argc;
 } Command;
 
 // error output
@@ -38,9 +44,9 @@ typedef enum {
 #define error(format, ...) fprintf(stderr, "td: " format, ##__VA_ARGS__)
 #endif
 
-#define defer(rc, res)  \
-    do {            \
-        rc = res; \
-        goto defer;  \
+#define defer(rc, res) \
+    do {               \
+        rc = res;      \
+        goto defer;    \
     } while (0)
 #endif

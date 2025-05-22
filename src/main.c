@@ -49,49 +49,65 @@ void push(sqlite3* db) {
     }
 }
 
-void info(sqlite3* db) {
-    char buf[LINE_SIZE + 1] = {0};
-    while (true) {
-        str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
-        if (str_isempty(buf)) break;
-        if (info_task(db, buf)) {
-            error("invalid id '%s'\n", buf);
-        } else
-            break;
+void info(sqlite3* db, Command* cmd) {
+    if (cmd->argc == 1) {
+        info_task(db, cmd->argv[0]);
+    } else {
+        char buf[LINE_SIZE + 1] = {0};
+        while (true) {
+            str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
+            if (str_isempty(buf)) break;
+            if (info_task(db, buf)) {
+                error("invalid id '%s'\n", buf);
+            } else
+                break;
+        }
     }
 }
 
-void drop(sqlite3* db) {
-    char buf[LINE_SIZE + 1] = {0};
-    while (true) {
-        str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
-        if (str_isempty(buf)) break;
-        if (drop_task(db, buf)) {
-            error("invalid id '%s'\n", buf);
-        } else
-            break;
+void drop(sqlite3* db, Command* cmd) {
+    if (cmd->argc == 1) {
+        drop_task(db, cmd->argv[0]);
+    } else {
+        char buf[LINE_SIZE + 1] = {0};
+        while (true) {
+            str_readline(buf, LINE_SIZE, "Task id(skip to abort): ");
+            if (str_isempty(buf)) break;
+            if (drop_task(db, buf)) {
+                error("invalid id '%s'\n", buf);
+            } else
+                break;
+        }
     }
 }
 
 void help() {
     // clang-format off
-    printf("Usage: td [COMMAND]\n");
+    printf("Usage: td [COMMAND [COMMAND_OPTIONS]]\n");
     printf("Simple ToDo task manager. With no command lists all tasks.\n");
     printf("COMMANDS:\n");
-    printf("\t push - Pushes a task to database. Asks user for name and note.\n");
-    printf("\t info - Gets information about specific task, such as note.\n");
-    printf("\t drop - Deletes task.\n");
-    printf("\t amend - Amend a task's name or note.\n");
+    printf("FOR FURTHER READING: when ID parameter is not specified, td asks user for a task ID.\n");
+    printf("\t push [ID] - Pushes a task to database.\n");
+    printf("\t info [ID] - Gets information about specific task, such as note.\n");
+    printf("\t drop [ID] - Deletes task.\n");
+    printf("\t amend [ID] - Amend a task's name or note.\n");
     printf("\t help - Displays this help page.\n");
     // clang-format on
 }
 
-void amend(sqlite3* db) {
+void amend(sqlite3* db, Command* cmd) {
     char choice[2] = {0};
-    char id[LINE_SIZE + 1] = {0};
+
+    char* id = NULL;
+    if (cmd->argc == 1)
+        id = cmd->argv[0];
+    else {
+        char buf[LINE_SIZE + 1] = {0};
+        str_readline(buf, LINE_SIZE, "Task id: ");
+        id = buf;
+    }
+
     while (true) {
-        str_readline(id, LINE_SIZE, "Task id: ");
-        if (str_isempty(id)) break;
         str_readline(choice, 1, "What to change: n(A)me/n(O)te: ");
         if (str_isempty(choice)) break;
 
@@ -115,25 +131,44 @@ void amend(sqlite3* db) {
     }
 }
 
-Command parse_args(int argc, char** argv) {
+void parse_args(Command* cmd, int argc, char** argv) {
     if (argc < 2) {
-        return ListCmd;
+        cmd->type = ListCmd;
+        return;
     }
     char* command = argv[1];
     if (strcmp(command, "push") == 0) {
-        return PushCmd;
-    } else if (strcmp(command, "info") == 0) {
-        return InfoCmd;
-    } else if (strcmp(command, "amend") == 0) {
-        return AmendCmd;
-    } else if (strcmp(command, "drop") == 0) {
-        return DropCmd;
-    } else if (strcmp(command, "help") == 0) {
-        return HelpCmd;
-    } else {
-        error("unrecognized command '%s'\n", command);
+        cmd->type = PushCmd;
+        return;
     }
-    return NullCmd;
+
+    if (argc >= 3) {
+        cmd->argc = 1;
+        // argv[2] is id
+        cmd->argv = argv + 2;
+    } else {
+        cmd->argc = 0;
+        cmd->argv = NULL;
+    }
+
+    if (strcmp(command, "info") == 0) {
+        cmd->type = InfoCmd;
+        return;
+    } else if (strcmp(command, "amend") == 0) {
+        cmd->type = AmendCmd;
+        return;
+    } else if (strcmp(command, "drop") == 0) {
+        cmd->type = DropCmd;
+        return;
+    } else if (strcmp(command, "help") == 0) {
+        cmd->type = HelpCmd;
+        return;
+    } else {
+        error("unrecognized command '%s'. run 'td help' to get help.\n",
+              command);
+    }
+
+    cmd->type = NullCmd;
 }
 
 int locate_db(char** db_pathname) {
@@ -168,8 +203,8 @@ defer:
     return rc;
 }
 
-int dispatch_command(Command cmd) {
-    if (cmd == HelpCmd) {
+int dispatch_command(Command* cmd) {
+    if (cmd->type == HelpCmd) {
         help();
         return 0;
     }
@@ -179,21 +214,21 @@ int dispatch_command(Command cmd) {
     if (locate_db(&db_pathname)) defer(result, 1);
     if (db_init(&db, db_pathname)) defer(result, 1);
 
-    switch (cmd) {
+    switch (cmd->type) {
         case ListCmd:
             list_tasks(db);
             break;
         case InfoCmd:
-            info(db);
+            info(db, cmd);
             break;
         case PushCmd:
             push(db);
             break;
         case AmendCmd:
-            amend(db);
+            amend(db, cmd);
             break;
         case DropCmd:
-            drop(db);
+            drop(db, cmd);
             break;
         default:
             error("unexpected command type\n");
@@ -206,8 +241,9 @@ defer:
 }
 
 int main(int argc, char** argv) {
-    Command cmd = parse_args(argc, argv);
-    if (cmd == NullCmd) return 1;
-    if (dispatch_command(cmd)) return 1;
+    Command cmd = {0};
+    parse_args(&cmd, argc, argv);
+    if (cmd.type == NullCmd) return 1;
+    if (dispatch_command(&cmd)) return 1;
     return 0;
 }
