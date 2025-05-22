@@ -20,19 +20,25 @@
 
 // Types & enums
 typedef enum {
-    HelpCmd = 1,
+    NullCmd = 0,
+    HelpCmd,
     ListCmd,
     InfoCmd,
     PushCmd,
     AmendCmd,
     DropCmd,
-    NullCmd,
+    VersionCmd,
 } eCommandType;
 
 typedef struct {
     eCommandType type;
     char* arg;
 } Command;
+
+struct Config {
+    bool verbose;
+    bool confirm; 
+};
 
 // error output
 #ifndef NDEBUG

@@ -9,16 +9,52 @@
 #include "str.h"
 #include "task.h"
 
-static struct option long_options[] = {
-    // TODO future cli args
-    // {"no-confirm", no_argument, 0, 'n'},
-    // {"verbose", no_argument, 0, 'v'},
-    // {"silent", no_argument, 0, 's'},
-    {"help", no_argument, 0, 'h'},       {"push", no_argument, 0, 'p'},
-    {"info", required_argument, 0, 'i'}, {"amend", required_argument, 0, 'a'},
-    {"drop", required_argument, 0, 'd'}, {0, 0, 0, 0}};
+// change this on every release((
+#define VERSION "v.1.1.0"
 
-static const char* short_options = "hpi:d:a:";
+// clang-format off
+static struct option long_options[] = {
+    {"no-confirm", no_argument, 0, 'n'},
+    {"verbose", no_argument, 0, 'V'},
+    {"version", no_argument, 0, 'v'},
+    {"help", no_argument, 0, 'h'},
+    {"push", no_argument, 0, 'p'},
+    {"info", required_argument, 0, 'i'},
+    {"amend", required_argument, 0, 'a'},
+    {"drop", required_argument, 0, 'd'},
+    {0, 0, 0, 0}
+};
+// clang-format on
+static const char* short_options = "hpi:d:a:vVn";
+static struct Config g_config = {.verbose = false, .confirm = true};
+
+void help() {
+    // clang-format off
+    printf("Usage: td [options]\n");
+    printf("Simple ToDo task manager. With no command lists all tasks.\n");
+    printf("Allowed characters in tasks' names and notes are 'a-zA-Z,.<space>&!'\n\n");
+    printf("COMMANDS:\n");
+    printf("\t-p --push Push a task to database.\n");
+    printf("\t-i --info <ID> Get information about specific task, such as note.\n");
+    printf("\t-d --drop <ID> Delete task.\n");
+    printf("\t-a --amend <ID> Amend a task's name or note.\n");
+    printf("OPTIONS & HELPERS:\n");
+    printf("\t-n --no-confirm Do not confirm user before amending or deleting a task.\n");
+    printf("\t-V --verbose Enable verbose output\n");
+    printf("\t-v --version Print td's version\n");
+    printf("\t-h --help Display this help page.\n");
+    // clang-format on
+}
+
+int confirm(const char* prompt) {
+    char choice[2] = {};
+    str_readline(choice, 1, prompt);
+    if (str_isempty(choice)) return 1;
+    if (choice[0] == 'y' || choice[0] == 'Y')
+        return 0;
+    else
+        return 1;
+}
 
 int db_init(sqlite3** db, const char* db_name) {
     int rc = sqlite3_open(db_name, db);
@@ -52,32 +88,20 @@ void push(sqlite3* db) {
 
         if (push_task(db, name, note)) {
             error("cannot create task, please check your name and note\n");
-            error(
-                "allowed characters are a-z, A-Z, comma, period, space, "
-                "ampersand and !\n");
         } else {
+            if (g_config.verbose) printf("Created task '%s'\n", name);
             break;
         }
     }
 }
 
-void help() {
-    // clang-format off
-    printf("Usage: td [options]\n");
-    printf("Simple ToDo task manager. With no command lists all tasks.\n");
-    printf("COMMANDS:\n");
-    printf("\t -p --push Push a task to database.\n");
-    printf("\t -i --info <ID> Get information about specific task, such as note.\n");
-    printf("\t -d --drop <ID> Delete task.\n");
-    printf("\t -a --amend <ID> Amend a task's name or note.\n");
-    printf("\t -h --help  Display this help page.\n");
-    // clang-format on
-}
-
 void amend(sqlite3* db, Command* cmd) {
     char choice[2] = {};
     char* id = cmd->arg;
-
+    if (g_config.verbose && info_task(db, id) != 0) {
+        error("cannot amend task with id '%s'\n", id);
+        return;
+    }
     while (true) {
         str_readline(choice, 1, "What to change: n(A)me/n(O)te: ");
         if (str_isempty(choice)) break;
@@ -85,18 +109,47 @@ void amend(sqlite3* db, Command* cmd) {
         if (choice[0] == 'a' || choice[0] == 'A') {
             char name[LINE_SIZE + 1] = {0};
             str_readline(name, LINE_SIZE, "New name: ");
-            if (amend_task(db, AMEND_NAME, id, name)) {
-                error("cannot amend task '%s'\n", id);
-            } else
-                break;
+
+            if (g_config.confirm) {
+                if (confirm("Amend task? (y/n) ") == 0) {
+                    if (amend_task(db, AMEND_NAME, id, name)) {
+                        error("cannot amend task with id '%s'\n", id);
+                    } else {
+                        if (g_config.verbose) printf("Task amended\n");
+                        break;
+                    }
+                } else
+                    break;
+            } else {
+                if (amend_task(db, AMEND_NAME, id, name)) {
+                    error("cannot amend task with id '%s'\n", id);
+                } else {
+                    if (g_config.verbose) printf("Task amended\n");
+                    break;
+                }
+            }
 
         } else if (choice[0] == 'o' || choice[0] == 'O') {
             char note[LINE_SIZE_EXT + 1] = {0};
             str_readline(note, LINE_SIZE_EXT, "New note: ");
-            if (amend_task(db, AMEND_NOTE, id, note)) {
-                error("cannot amend task '%s'\n", id);
-            } else
-                break;
+
+            if (g_config.confirm) {
+                if (confirm("Amend task? (y/n) ") == 0) {
+                    if (amend_task(db, AMEND_NOTE, id, note)) {
+                        error("cannot amend task with id %s'\n", id);
+                    } else {
+                        if (g_config.verbose) printf("Task amended\n");
+                        break;
+                    }
+                }
+            } else {
+                if (amend_task(db, AMEND_NOTE, id, note)) {
+                    error("cannot amend task with id %s'\n", id);
+                } else {
+                    if (g_config.verbose) printf("Task amended\n");
+                    break;
+                }
+            }
         } else
             error("invalid choice\n");
     }
@@ -110,9 +163,21 @@ void parse_args(Command* cmd, int argc, char** argv) {
         if (c == -1) break;
 
         switch (c) {
+            // helper/util commands & options
             case 'h':
                 cmd->type = HelpCmd;
+                return;
+            case 'v':  // version
+                cmd->type = VersionCmd;
+                return;
+            case 'V':  // verbose
+                g_config.verbose = true;
                 break;
+            case 'n':
+                g_config.confirm = false;
+                break;
+
+            // UX commands
             case 'p':
                 cmd->type = PushCmd;
                 break;
@@ -128,6 +193,8 @@ void parse_args(Command* cmd, int argc, char** argv) {
                 cmd->type = DropCmd;
                 cmd->arg = optarg;
                 break;
+
+            // error-handling cases
             case '?':
                 cmd->type = NullCmd;
                 break;
@@ -179,6 +246,12 @@ int dispatch_command(Command* cmd) {
         help();
         return 0;
     }
+    if (cmd->type == VersionCmd) {
+        printf("td " VERSION "\n");
+        printf("run 'td --help' to get help\n");
+        return 0;
+    }
+
     int result = 0;
     sqlite3* db = NULL;
     char* db_pathname = NULL;
@@ -199,7 +272,15 @@ int dispatch_command(Command* cmd) {
             amend(db, cmd);
             break;
         case DropCmd:
-            drop_task(db, cmd->arg);
+            if (g_config.confirm) {
+                if (confirm("Delete task? (y/n) ")) {
+                    if (drop_task(db, cmd->arg))
+                        error("cannot delete task with id '%s'", cmd->arg);
+                }
+            } else {
+                if (drop_task(db, cmd->arg))
+                    error("cannot delete task with id '%s'", cmd->arg);
+            }
             break;
         default:
             error("unexpected command type\n");
