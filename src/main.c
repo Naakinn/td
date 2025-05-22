@@ -75,8 +75,8 @@ void help() {
 }
 
 void amend(sqlite3* db, Command* cmd) {
-    char choice[2] = {0};
-    char* id = cmd->arg; 
+    char choice[2] = {};
+    char* id = cmd->arg;
 
     while (true) {
         str_readline(choice, 1, "What to change: n(A)me/n(O)te: ");

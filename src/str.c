@@ -1,7 +1,7 @@
 #include "str.h"
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 void str_readline(char* buf, int limit, const char* prompt) {
     printf("%s", prompt);
@@ -11,7 +11,9 @@ void str_readline(char* buf, int limit, const char* prompt) {
         buf[i++] = c;
     }
     buf[i] = '\0';
-    fflush(stdin);
+    // flush input
+    if (c != '\n' && c != EOF)
+        while ((c = getchar()) != '\n' && c != EOF);
 }
 
 bool str_isempty(const char* s) {
