@@ -212,6 +212,11 @@ void parse_args(Command* cmd, int argc, char** argv) {
 int locate_db(char** db_pathname) {
     int rc = 0;
     const char* home = getenv("HOME");
+    if (home == NULL) {
+        error("Could not find 'HOME' environment variable\n");
+        return 1;
+    }
+
     char* td_dir = "/.td";
     char* td_db = "/td_data.db";
     *db_pathname =
