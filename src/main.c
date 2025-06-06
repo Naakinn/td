@@ -12,21 +12,7 @@
 // change this on every release((
 #define VERSION "v.1.1.0"
 
-// clang-format off
-static struct option long_options[] = {
-    {"no-confirm", no_argument, 0, 'n'},
-    {"verbose", no_argument, 0, 'V'},
-    {"version", no_argument, 0, 'v'},
-    {"help", no_argument, 0, 'h'},
-    {"push", no_argument, 0, 'p'},
-    {"info", required_argument, 0, 'i'},
-    {"amend", required_argument, 0, 'a'},
-    {"drop", required_argument, 0, 'd'},
-    {0, 0, 0, 0}
-};
-// clang-format on
-static const char* short_options = "hpi:d:a:vVn";
-static struct Config g_config = {.verbose = false, .confirm = true};
+static struct Config gconfig = {.verbose = false, .confirm = true};
 
 void help() {
     // clang-format off
@@ -89,7 +75,7 @@ void push(sqlite3* db) {
         if (push_task(db, name, note)) {
             error("cannot create task, please check your name and note\n");
         } else {
-            if (g_config.verbose) printf("Created task '%s'\n", name);
+            if (gconfig.verbose) printf("Created task '%s'\n", name);
             break;
         }
     }
@@ -98,7 +84,8 @@ void push(sqlite3* db) {
 void amend(sqlite3* db, Command* cmd) {
     char choice[2] = {};
     char* id = cmd->arg;
-    if (g_config.verbose && info_task(db, id) != 0) {
+
+    if (gconfig.verbose && info_task(db, id) != 0) {
         error("cannot amend task with id '%s'\n", id);
         return;
     }
@@ -110,53 +97,66 @@ void amend(sqlite3* db, Command* cmd) {
             char name[LINE_SIZE + 1] = {0};
             str_readline(name, LINE_SIZE, "New name: ");
 
-            if (g_config.confirm) {
-                if (confirm("Amend task? (y/n) ") == 0) {
-                    if (amend_task(db, AMEND_NAME, id, name)) {
-                        error("cannot amend task with id '%s'\n", id);
-                    } else {
-                        if (g_config.verbose) printf("Task amended\n");
-                        break;
-                    }
-                } else
-                    break;
-            } else {
-                if (amend_task(db, AMEND_NAME, id, name)) {
-                    error("cannot amend task with id '%s'\n", id);
-                } else {
-                    if (g_config.verbose) printf("Task amended\n");
-                    break;
-                }
+            if (gconfig.confirm) {
+                if (confirm("Amend task? (y/n) ") != 0) return;
             }
+
+            if (amend_task(db, AMEND_NAME, id, name)) {
+                error("cannot amend task with id '%s'\n", id);
+                return;
+            }
+            if (gconfig.verbose) printf("Task amended\n");
+            break;
 
         } else if (choice[0] == 'o' || choice[0] == 'O') {
             char note[LINE_SIZE_EXT + 1] = {0};
             str_readline(note, LINE_SIZE_EXT, "New note: ");
 
-            if (g_config.confirm) {
-                if (confirm("Amend task? (y/n) ") == 0) {
-                    if (amend_task(db, AMEND_NOTE, id, note)) {
-                        error("cannot amend task with id %s'\n", id);
-                    } else {
-                        if (g_config.verbose) printf("Task amended\n");
-                        break;
-                    }
-                }
-            } else {
-                if (amend_task(db, AMEND_NOTE, id, note)) {
-                    error("cannot amend task with id %s'\n", id);
-                } else {
-                    if (g_config.verbose) printf("Task amended\n");
-                    break;
-                }
+            if (gconfig.confirm) {
+                if (confirm("Amend task? (y/n) ") != 0) return;
             }
-        } else
+
+            if (amend_task(db, AMEND_NOTE, id, note)) {
+                error("cannot amend task with id '%s'\n", id);
+                break;
+            }
+            if (gconfig.verbose) printf("Task amended\n");
+            break;
+
+        } else {
             error("invalid choice\n");
+            return;
+        }
     }
+}
+
+void drop(sqlite3* db, Command* cmd) {
+    if (gconfig.confirm) {
+        if (confirm("Delete task? (y/n) ") != 0) return;
+    }
+    if (drop_task(db, cmd->arg))
+        error("cannot delete task with id '%s'", cmd->arg);
+    if (gconfig.verbose) printf("Task deleted\n");
 }
 
 void parse_args(Command* cmd, int argc, char** argv) {
     int c;
+    const char* short_options = "hpi:d:a:vVn";
+
+    // clang-format off
+    struct option long_options[] = {
+        {"no-confirm", no_argument, 0, 'n'},
+        {"verbose", no_argument, 0, 'V'},
+        {"version", no_argument, 0, 'v'},
+        {"help", no_argument, 0, 'h'},
+        {"push", no_argument, 0, 'p'},
+        {"info", required_argument, 0, 'i'},
+        {"amend", required_argument, 0, 'a'},
+        {"drop", required_argument, 0, 'd'},
+        {0, 0, 0, 0}
+    };
+    // clang-format on
+
     cmd->type = ListCmd;
     while (true) {
         c = getopt_long(argc, argv, short_options, long_options, NULL);
@@ -171,10 +171,10 @@ void parse_args(Command* cmd, int argc, char** argv) {
                 cmd->type = VersionCmd;
                 return;
             case 'V':  // verbose
-                g_config.verbose = true;
+                gconfig.verbose = true;
                 break;
             case 'n':
-                g_config.confirm = false;
+                gconfig.confirm = false;
                 break;
 
             // UX commands
@@ -272,15 +272,7 @@ int dispatch_command(Command* cmd) {
             amend(db, cmd);
             break;
         case DropCmd:
-            if (g_config.confirm) {
-                if (confirm("Delete task? (y/n) ")) {
-                    if (drop_task(db, cmd->arg))
-                        error("cannot delete task with id '%s'", cmd->arg);
-                }
-            } else {
-                if (drop_task(db, cmd->arg))
-                    error("cannot delete task with id '%s'", cmd->arg);
-            }
+            drop(db, cmd);
             break;
         default:
             error("unexpected command type\n");

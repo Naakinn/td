@@ -37,7 +37,7 @@ typedef struct {
 
 struct Config {
     bool verbose;
-    bool confirm; 
+    bool confirm;
 };
 
 // error output

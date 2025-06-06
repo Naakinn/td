@@ -92,14 +92,14 @@ int drop_task(sqlite3* db, const char* id) {
     return 0;
 }
 
-int amend_task(sqlite3* db, int __mode, const char* id, const char* s) {
+int amend_task(sqlite3* db, int mode, const char* id, const char* s) {
     if (!str_isnumeric(id)) return 1;
     if (sanitize(s)) return 1;
 
     char sql[SQL_SIZE + 1] = {0};
-    if (__mode == AMEND_NAME) {
+    if (mode == AMEND_NAME) {
         sprintf(sql, "UPDATE tasks SET name='%s' WHERE id=%s;", s, id);
-    } else if (__mode == AMEND_NOTE) {
+    } else if (mode == AMEND_NOTE) {
         sprintf(sql, "UPDATE tasks SET note='%s' WHERE id=%s;", s, id);
     } else
         return 1;
