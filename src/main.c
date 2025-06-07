@@ -14,7 +14,7 @@
 // change this on every release((
 #define VERSION "v.1.1.0"
 
-static struct Config gconfig = {.verbose = false, .confirm = true};
+static struct Config gconfig = {.confirm = true};
 
 void help() {
     // clang-format off
@@ -28,7 +28,6 @@ void help() {
     printf("\t-a --amend <ID> Amend a task's name or note.\n");
     printf("OPTIONS & HELPERS:\n");
     printf("\t-n --no-confirm Do not confirm user before amending or deleting a task.\n");
-    printf("\t-V --verbose Enable verbose output\n");
     printf("\t-v --version Print td's version\n");
     printf("\t-h --help Display this help page.\n");
     // clang-format on
@@ -77,7 +76,7 @@ void push(sqlite3* db) {
         if (push_task(db, name, note)) {
             error("cannot create task, please check your name and note\n");
         } else {
-            if (gconfig.verbose) printf("Created task '%s'\n", name);
+            printf("Created task '%s'\n", name);
             break;
         }
     }
@@ -87,7 +86,7 @@ void amend(sqlite3* db, Command* cmd) {
     char choice[2] = {};
     char* id = cmd->arg;
 
-    if (gconfig.verbose && info_task(db, id) != 0) {
+    if (info_task(db, id) != 0) {
         error("cannot amend task with id '%s'\n", id);
         return;
     }
@@ -107,7 +106,7 @@ void amend(sqlite3* db, Command* cmd) {
                 error("cannot amend task with id '%s'\n", id);
                 return;
             }
-            if (gconfig.verbose) printf("Task amended\n");
+            printf("Task amended\n");
             break;
 
         } else if (choice[0] == 'o' || choice[0] == 'O') {
@@ -122,7 +121,7 @@ void amend(sqlite3* db, Command* cmd) {
                 error("cannot amend task with id '%s'\n", id);
                 break;
             }
-            if (gconfig.verbose) printf("Task amended\n");
+            printf("Task amended\n");
             break;
 
         } else {
@@ -138,17 +137,16 @@ void drop(sqlite3* db, Command* cmd) {
     }
     if (drop_task(db, cmd->arg))
         error("cannot delete task with id '%s'", cmd->arg);
-    if (gconfig.verbose) printf("Task deleted\n");
+    printf("Task deleted\n");
 }
 
 void parse_args(Command* cmd, int argc, char** argv) {
     int c;
-    const char* short_options = "hpi:d:a:vVn";
+    const char* short_options = "hpi:d:a:vn";
 
     // clang-format off
     struct option long_options[] = {
         {"no-confirm", no_argument, 0, 'n'},
-        {"verbose", no_argument, 0, 'V'},
         {"version", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
         {"push", no_argument, 0, 'p'},
@@ -172,9 +170,6 @@ void parse_args(Command* cmd, int argc, char** argv) {
             case 'v':  // version
                 cmd->type = VersionCmd;
                 return;
-            case 'V':  // verbose
-                gconfig.verbose = true;
-                break;
             case 'n':
                 gconfig.confirm = false;
                 break;

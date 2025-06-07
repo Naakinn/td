@@ -36,7 +36,6 @@ typedef struct {
 } Command;
 
 struct Config {
-    bool verbose;
     bool confirm;
 };
 

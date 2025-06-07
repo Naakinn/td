@@ -33,7 +33,6 @@ COMMANDS:
     -a --amend <ID> Amend a task's name or note.
 OPTIONS & HELPERS:
     -n --no-confirm Do not confirm user before amending or deleting a task.
-    -V --verbose Enable verbose output
     -v --version Print td's version
     -h --help Display this help page.
 ```
