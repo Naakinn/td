@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 void str_readline(char* buf, int limit, const char* prompt) {
     printf("%s", prompt);
@@ -41,4 +42,15 @@ int str_toi(const char* s) {
         res = res * 10 + (s[i] - '0');
     }
     return res;
+}
+
+void str_delim_right(char* s, char d) {
+    ssize_t l = strlen(s);
+    for (ssize_t i = l - 1; i >= 0; --i) {
+        if (s[i] == d) {
+            s[i] = '\0';
+            memset(s + i, 0, l - i);
+            break;
+        }
+    }
 }

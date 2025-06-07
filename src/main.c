@@ -1,9 +1,11 @@
 #include <getopt.h>
+#include <linux/limits.h>
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "defs.h"
 #include "str.h"
@@ -211,38 +213,47 @@ void parse_args(Command* cmd, int argc, char** argv) {
 
 int locate_db(char** db_pathname) {
     int rc = 0;
-    const char* home = getenv("HOME");
-    if (home == NULL) {
-        error("Could not find 'HOME' environment variable\n");
-        return 1;
-    }
-
     char* td_dir = "/.td";
     char* td_db = "/td_data.db";
-    *db_pathname =
-        calloc(strlen(home) + strlen(td_dir) + strlen(td_db) + 1, sizeof(char));
-    char* db_dir = calloc(strlen(home) + strlen(td_dir) + 1, sizeof(char));
-    if (db_pathname == NULL || db_dir == NULL) {
-        error("could not allocate memory\n");
+    char cwd[PATH_MAX + 1] = {};
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        error("Couldn't get current directory\n");
         defer(rc, 1);
     }
-    strncat(*db_pathname, home, strlen(home));
-    strncat(*db_pathname, td_dir, strlen(td_dir));
-    strncat(*db_pathname, td_db, strlen(td_db));
 
-    strncat(db_dir, home, strlen(home));
-    strncat(db_dir, td_dir, strlen(td_dir));
+    const char* home = getenv("HOME");
+    if (home == NULL) {
+        error("Couldn't find 'HOME' environment variable\n");
+        defer(rc, 1);
+    }
 
-    struct stat st = {0};
-    if (stat(db_dir, &st) == -1) {
-        int rc = mkdir(db_dir, S_IRWXU);
-        if (rc != 0) {
-            error("could not create directory %s\n", db_dir);
-            defer(rc, 1);
+    strncat(cwd, td_dir, strlen(td_dir));
+    struct stat st;
+    while (true) {
+        if (stat(cwd, &st) == -1) {
+            // move upwards
+            str_delim_right(cwd, '/');
+            if (strcmp(cwd, home) == 0) {
+                // not found
+                strncat(cwd, td_dir, strlen(td_dir));
+                break;
+            }
+            str_delim_right(cwd, '/');
+            strncat(cwd, td_dir, strlen(td_dir));
+        } else {
+            // found
+            strncat(cwd, td_db, strlen(td_db));
+            *db_pathname = calloc(strlen(cwd) + 1, sizeof(char));
+            strncpy(*db_pathname, cwd, strlen(cwd));
+            defer(rc, 0);
         }
     }
+    // not found, create at $home
+    if (mkdir(cwd, S_IRWXU) != 0) {
+        error("could not create directory '%s'\n", cwd);
+        defer(rc, 1);
+    }
 defer:
-    if (db_dir != NULL) free(db_dir);
     return rc;
 }
 

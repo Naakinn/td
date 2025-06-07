@@ -8,5 +8,6 @@ void str_readline(char* buf, const int limit, const char* prompt);
 bool str_isempty(const char* s);
 bool str_isnumeric(const char* s);
 int str_toi(const char* s);
+void str_delim_right(char* s, char d);
 
 #endif
