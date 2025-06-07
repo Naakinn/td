@@ -21,13 +21,12 @@
 // Types & enums
 typedef enum {
     NullCmd = 0,
-    HelpCmd,
     ListCmd,
     InfoCmd,
     PushCmd,
     AmendCmd,
     DropCmd,
-    VersionCmd,
+    LocalCmd,
 } eCommandType;
 
 typedef struct {

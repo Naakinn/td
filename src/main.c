@@ -1,12 +1,11 @@
 #include <getopt.h>
-#include <linux/limits.h>
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "db.h"
 #include "defs.h"
 #include "str.h"
 #include "task.h"
@@ -20,12 +19,15 @@ void help() {
     // clang-format off
     printf("Usage: td [options]\n");
     printf("Simple ToDo task manager. With no command lists all tasks.\n");
-    printf("Allowed characters in tasks' names and notes are 'a-zA-Z,.<space>&!'\n\n");
+    printf("Allowed characters in tasks' names and notes are 'a-zA-Z,.<space>&!'\n");
+    printf("td relies on task database, which is by default located in $HOME/.td directory. "
+            "When td is invoked, it recursively finds nearest to the current directory task database.\n\n");
     printf("COMMANDS:\n");
     printf("\t-p --push Push a task to database.\n");
     printf("\t-i --info <ID> Get information about specific task, such as note.\n");
     printf("\t-d --drop <ID> Delete task.\n");
     printf("\t-a --amend <ID> Amend a task's name or note.\n");
+    printf("\t-l --local Initialize task database in the current directory.\n");
     printf("OPTIONS & HELPERS:\n");
     printf("\t-n --no-confirm Do not confirm user before amending or deleting a task.\n");
     printf("\t-v --version Print td's version\n");
@@ -142,7 +144,7 @@ void drop(sqlite3* db, Command* cmd) {
 
 void parse_args(Command* cmd, int argc, char** argv) {
     int c;
-    const char* short_options = "hpi:d:a:vn";
+    const char* short_options = "hpi:d:a:vnl";
 
     // clang-format off
     struct option long_options[] = {
@@ -153,6 +155,7 @@ void parse_args(Command* cmd, int argc, char** argv) {
         {"info", required_argument, 0, 'i'},
         {"amend", required_argument, 0, 'a'},
         {"drop", required_argument, 0, 'd'},
+        {"local", no_argument, 0, 'l'},
         {0, 0, 0, 0}
     };
     // clang-format on
@@ -165,10 +168,13 @@ void parse_args(Command* cmd, int argc, char** argv) {
         switch (c) {
             // helper/util commands & options
             case 'h':
-                cmd->type = HelpCmd;
+                cmd->type = NullCmd;
+                help();
                 return;
             case 'v':  // version
-                cmd->type = VersionCmd;
+                cmd->type = NullCmd;
+                printf("td " VERSION "\n");
+                printf("run 'td --help' to get help\n");
                 return;
             case 'n':
                 gconfig.confirm = false;
@@ -190,6 +196,9 @@ void parse_args(Command* cmd, int argc, char** argv) {
                 cmd->type = DropCmd;
                 cmd->arg = optarg;
                 break;
+            case 'l':
+                cmd->type = LocalCmd;
+                break;
 
             // error-handling cases
             case '?':
@@ -206,75 +215,19 @@ void parse_args(Command* cmd, int argc, char** argv) {
     }
 }
 
-int locate_db(char** db_pathname) {
-    int rc = 0;
-    char* td_dir = "/.td";
-    char* td_db = "/td_data.db";
-    char cwd[PATH_MAX + 1] = {};
-    if (getcwd(cwd, sizeof(cwd)) == NULL) {
-        error("Couldn't get current directory\n");
-        defer(rc, 1);
-    }
-
-    const char* home = getenv("HOME");
-    if (home == NULL) {
-        error("Couldn't find 'HOME' environment variable\n");
-        defer(rc, 1);
-    }
-
-    strncat(cwd, td_dir, strlen(td_dir));
-    struct stat st;
-    while (true) {
-        if (stat(cwd, &st) == -1) {
-            // move upwards
-            str_delim_right(cwd, '/');
-            if (strcmp(cwd, home) == 0) {
-                // not found
-                strncat(cwd, td_dir, strlen(td_dir));
-                break;
-            }
-            str_delim_right(cwd, '/');
-            strncat(cwd, td_dir, strlen(td_dir));
-        } else {
-            // found
-            strncat(cwd, td_db, strlen(td_db));
-            *db_pathname = calloc(strlen(cwd) + 1, sizeof(char));
-            strncpy(*db_pathname, cwd, strlen(cwd));
-            defer(rc, 0);
-        }
-    }
-    // not found, create at $home
-    if (mkdir(cwd, S_IRWXU) != 0) {
-        error("could not create directory '%s'\n", cwd);
-        defer(rc, 1);
-    }
-defer:
-    return rc;
-}
-
 int dispatch_command(Command* cmd) {
-    if (cmd->type == HelpCmd) {
-        help();
-        return 0;
-    }
-    if (cmd->type == VersionCmd) {
-        printf("td " VERSION "\n");
-        printf("run 'td --help' to get help\n");
-        return 0;
-    }
-
-    int result = 0;
+    int rc = 0;
     sqlite3* db = NULL;
     char* db_pathname = NULL;
-    if (locate_db(&db_pathname)) defer(result, 1);
-    if (db_init(&db, db_pathname)) defer(result, 1);
+    if (locate_db(&db_pathname)) defer(rc, 1);
+    if (db_init(&db, db_pathname)) defer(rc, 1);
 
     switch (cmd->type) {
         case ListCmd:
-            list_tasks(db);
+            if (list_tasks(db) != 0) defer(rc, 1);
             break;
         case InfoCmd:
-            info_task(db, cmd->arg);
+            if (info_task(db, cmd->arg) != 0) defer(rc, 1);
             break;
         case PushCmd:
             push(db);
@@ -285,14 +238,17 @@ int dispatch_command(Command* cmd) {
         case DropCmd:
             drop(db, cmd);
             break;
+        case LocalCmd:
+            if (local_db_init() != 0) defer(rc, 1);
+            break;
         default:
             error("unexpected command type\n");
-            defer(result, 1);
+            defer(rc, 1);
     }
 defer:
     if (db != NULL) sqlite3_close(db);
     if (db_pathname != NULL) free(db_pathname);
-    return result;
+    return rc;
 }
 
 int main(int argc, char** argv) {
