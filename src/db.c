@@ -10,7 +10,7 @@
 
 int create_td_dir(const char* pathname) {
     if (mkdir(pathname, S_IRWXU) != 0) {
-        error("could not create directory '%s'\n", pathname);
+        error("Couldn't create directory '%s'\n", pathname);
         return 1;
     }
     return 0;

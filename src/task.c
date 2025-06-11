@@ -6,6 +6,7 @@
 #include "sqlite3.h"
 #include "str.h"
 
+// will be deprecated
 int sanitize(const char* s) {
     if (s == NULL) return 1;
     for (int i = 0; s[i] != '\0'; ++i) {
@@ -17,9 +18,10 @@ int sanitize(const char* s) {
     }
     return 0;
 }
+
 int handle_rc(int rc, char* errmsg) {
     if (rc != SQLITE_OK) {
-        error("sqlite3 error: %s, rc = %d\n", errmsg != NULL ? errmsg : "NULL",
+        error("Sqlite3 error: %s, rc = %d\n", errmsg != NULL ? errmsg : "NULL",
               rc);
         sqlite3_free(errmsg);
         return 1;

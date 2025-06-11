@@ -17,7 +17,7 @@ ifneq ($(EXTERNAL_SQLITE3), ON)
 endif
 
 all: release
-debug: CFLAGS += -g
+debug: CFLAGS += -g -O0
 debug: LDFLAGS += -fsanitize=address -fno-omit-frame-pointer
 release: CFLAGS += -DNDEBUG
 	

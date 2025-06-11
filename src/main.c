@@ -11,7 +11,7 @@
 #include "task.h"
 
 // change this on every release((
-#define VERSION "v.1.1.0"
+#define VERSION "v.1.1.1"
 
 static struct Config gconfig = {.confirm = true};
 
@@ -48,7 +48,7 @@ int confirm(const char* prompt) {
 int db_init(sqlite3** db, const char* db_name) {
     int rc = sqlite3_open(db_name, db);
     if (rc != SQLITE_OK) {
-        error("sqlite3 error: %s\n", sqlite3_errmsg(*db));
+        error("Sqlite3 error: %s\n", sqlite3_errmsg(*db));
         sqlite3_close(*db);
         return 1;
     }
@@ -60,7 +60,7 @@ int db_init(sqlite3** db, const char* db_name) {
     char* errmsg = NULL;
     rc = sqlite3_exec(*db, sql, NULL, NULL, &errmsg);
     if (rc != SQLITE_OK) {
-        error("sqlite3 error: %s\n", errmsg);
+        error("Sqlite3 error: %s\n", errmsg);
         sqlite3_free(errmsg);
         return 1;
     }
@@ -76,7 +76,8 @@ void push(sqlite3* db) {
         str_readline(note, LINE_SIZE_EXT, "Enter a note(skip for NULL): ");
 
         if (push_task(db, name, note)) {
-            error("cannot create task, please check your name and note\n");
+            error("Couldn't create task, please check your name and note\n");
+            break;
         } else {
             printf("Created task '%s'\n", name);
             break;
@@ -89,7 +90,7 @@ void amend(sqlite3* db, Command* cmd) {
     char* id = cmd->arg;
 
     if (info_task(db, id) != 0) {
-        error("cannot amend task with id '%s'\n", id);
+        error("Couldn't amend task with id '%s'\n", id);
         return;
     }
     while (true) {
@@ -105,7 +106,7 @@ void amend(sqlite3* db, Command* cmd) {
             }
 
             if (amend_task(db, AMEND_NAME, id, name)) {
-                error("cannot amend task with id '%s'\n", id);
+                error("Couldn't amend task with id '%s'\n", id);
                 return;
             }
             printf("Task amended\n");
@@ -120,14 +121,14 @@ void amend(sqlite3* db, Command* cmd) {
             }
 
             if (amend_task(db, AMEND_NOTE, id, note)) {
-                error("cannot amend task with id '%s'\n", id);
+                error("Couldn't amend task with id '%s'\n", id);
                 break;
             }
             printf("Task amended\n");
             break;
 
         } else {
-            error("invalid choice\n");
+            error("Invalid choice\n");
             return;
         }
     }
@@ -137,8 +138,10 @@ void drop(sqlite3* db, Command* cmd) {
     if (gconfig.confirm) {
         if (confirm("Delete task? (y/n) ") != 0) return;
     }
-    if (drop_task(db, cmd->arg))
-        error("cannot delete task with id '%s'", cmd->arg);
+    if (drop_task(db, cmd->arg)) {
+        error("Couldn't delete task with id '%s'\n", cmd->arg);
+        return;
+    }
     printf("Task deleted\n");
 }
 
@@ -207,7 +210,7 @@ void parse_args(Command* cmd, int argc, char** argv) {
             default:
                 cmd->type = NullCmd;
                 error(
-                    "getopt returned unknown character code '%d'. please check "
+                    "Getopt returned unknown character code '%d'. please check "
                     "your command line arguments\n",
                     c);
                 break;
@@ -242,7 +245,7 @@ int dispatch_command(Command* cmd) {
             if (local_db_init() != 0) defer(rc, 1);
             break;
         default:
-            error("unexpected command type\n");
+            error("Unexpected command type\n");
             defer(rc, 1);
     }
 defer:
