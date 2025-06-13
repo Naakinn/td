@@ -121,15 +121,19 @@ defer:
 }
 
 int drop_task(sqlite3* db, const char* id) {
+    int res = 0;
     if (!str_isnumeric(id)) return 1;
 
     char* fmt = "DELETE FROM tasks WHERE id=%s;";
     char* sql = prepare_request(fmt, strlen(fmt) + strlen(id) + 1, id);
-    if (sql == NULL) return 1;
+    if (sql == NULL) defer(res, 1);
     char* errmsg = NULL;
     int rc = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
-    if (handle_rc(rc, errmsg)) return 1;
-    return 0;
+    if (handle_rc(rc, errmsg)) defer(res, 1);
+
+defer:
+    if (sql != NULL) free(sql);
+    return res;
 }
 
 int amend_task(sqlite3* db, int mode, const char* id, const char* s) {
