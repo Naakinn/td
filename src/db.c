@@ -8,14 +8,20 @@
 
 #include "str.h"
 
-int create_td_dir(const char* pathname) {
-    if (mkdir(pathname, S_IRWXU) != 0) {
+/* Create directory with read-write owner permissions specified by `pathname`.
+ * Returns non-zero value on error, and zero otherwise. */
+int create_dir(const char* pathname) {
+    if (mkdir(pathname, S_IRUSR + S_IWUSR) != 0) {
         error("Couldn't create directory '%s'\n", pathname);
         return 1;
     }
     return 0;
 }
 
+/* Find location of .td directory, which stands for td database, and write it as
+ * a string to `db_pathname`. If directory is not found, this function creates
+ * it at user's home directory. Returns non-zero value on error, and zero
+ * otherwise. */
 int locate_db(char** db_pathname) {
     int rc = 0;
     char* td_dir = "/.td";
@@ -53,12 +59,12 @@ int locate_db(char** db_pathname) {
             defer(rc, 0);
         }
     }
-    
-    if (create_td_dir(cwd) != 0) defer(rc, 1);
+
+    if (create_dir(cwd) != 0) defer(rc, 1);
 defer:
     return rc;
 }
-
+/* Create .td directory at the current directory. Returns non-zero on error, and zero otherwise. */
 int local_db_init() {
     char cwd[PATH_MAX + 1] = {};
     char* td_dir = "/.td";
@@ -67,7 +73,7 @@ int local_db_init() {
         return 1;
     }
     strncat(cwd, td_dir, strlen(td_dir));
-    if (create_td_dir(cwd) != 0) return 1;
+    if (create_dir(cwd) != 0) return 1;
     printf("Created directory '%s'\n", cwd);
     return 0;
 }
