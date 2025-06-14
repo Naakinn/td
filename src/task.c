@@ -117,7 +117,7 @@ defer:
 }
 
 /* Push new task to the `db` with name `name` and note `note`. If `note` is
- * empty or NULL, tasks's note is "NULL". Returns non-zero value on error, zero
+ * empty (`str_isempty` return `true`) or NULL, tasks's note is "NULL". Returns non-zero value on error, zero
  * otherwise. */
 int push_task(sqlite3* db, const char* name, const char* note) {
     bool has_note = true;
