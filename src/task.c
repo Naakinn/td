@@ -2,26 +2,10 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "defs.h"
 #include "sqlite3.h"
 #include "str.h"
-
-/* Check if character string `s` contains only allowed symbols.
-WARNING: It will be deprecated in future versions. */
-int sanitize(const char* s) {
-    if (s == NULL) return 1;
-    for (int i = 0; s[i] != '\0'; ++i) {
-        if (!((s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= 'a' && s[i] <= 'z') ||
-              (s[i] == ',') || (s[i] == '.') || (s[i] == ' ') ||
-              (s[i] >= '0' && s[i] <= '9') || (s[i] == '!') || (s[i] == '&'))) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 /* Check sqlite3 return code `rc`. If not success, print error mesage with
  * `errmsg`. */
@@ -35,26 +19,17 @@ int handle_rc(int rc, char* errmsg) {
     return 0;
 }
 
-/* Allocate string for sql request defined by `fmt` and format it using
- * variable-length array of arguments and function `vsnprintf`. `len` is the
- * maximum possible allocated string size(including `\0`), which should be at
- * least `strlen(fmt) + strlen(<va_args>) + 1.`.
- * WARNING: This function allocates memory, and caller must return it. */
-char* prepare_request(const char* fmt, size_t len, ...) {
+/* Format sql request string `fmt` with variable-length list of arguments using
+ * `sqlite3_vmprintf` function and write the result to an allocated output
+ * buffer. Returns output buffer on success and NULL on error.
+ * Warning: This function allocates memory which must be returned using
+ * `sqlite3_free`. */
+char* prepare_request(const char* fmt, ...) {
     va_list ap;
-    va_start(ap, len);
-    char* buf = calloc(len, sizeof(char));
-    char* rc = buf;
-    if (buf == NULL) {
-        error("Couldn't allocate memory\n");
-        defer(rc, NULL);
-    }
-    size_t bytes = vsnprintf(buf, len, fmt, ap);
-    if (bytes <= 0 || bytes >= len) {
-        error(
-            "Couldn't prepare sql request. Expected at most %ld symbols, got "
-            "%ld\n",
-            len, bytes);
+    va_start(ap, fmt);
+    char* rc = sqlite3_vmprintf(fmt, ap);
+    if (rc == NULL) {
+        error("Couldn't allocate memory for sql request\n");
         defer(rc, NULL);
     }
 defer:
@@ -104,7 +79,7 @@ int info_task(sqlite3* db, const char* s) {
     // TODO: handle id range, for e.g. 1-3
     int id = str_toi(s);
     char* fmt = "SELECT * FROM tasks WHERE id=%d;";
-    char* sql = prepare_request(fmt, strlen(fmt) + strlen(s) + 1, id);
+    char* sql = prepare_request(fmt, id);
     if (sql == NULL) defer(res, 1);
 
     char* errmsg = NULL;
@@ -112,23 +87,18 @@ int info_task(sqlite3* db, const char* s) {
     if (handle_rc(rc, errmsg)) defer(res, 1);
 
 defer:
-    if (sql != NULL) free(sql);
+    if (sql != NULL) sqlite3_free(sql);
     return res;
 }
 
 /* Push new task to the `db` with name `name` and note `note`. If `note` is
- * empty (`str_isempty` return `true`) or NULL, tasks's note is "NULL". Returns non-zero value on error, zero
- * otherwise. */
+ * empty (`str_isempty` return `true`) or NULL, tasks's note is "NULL". Returns
+ * non-zero value on error, zero otherwise. */
 int push_task(sqlite3* db, const char* name, const char* note) {
-    bool has_note = true;
     int res = 0;
-    if (str_isempty(note)) has_note = false;
-    if (sanitize(name)) return 1;
-    if (sanitize(note)) return 1;
 
-    char* fmt = "INSERT INTO tasks (name, note) VALUES ('%s', '%s');";
-    size_t len = strlen(fmt) + strlen(name) + (has_note ? strlen(note) : 0);
-    char* sql = prepare_request(fmt, len + 1, name, has_note ? note : "NULL");
+    char* fmt = "INSERT INTO tasks (name, note) VALUES (%Q, %Q);";
+    char* sql = prepare_request(fmt, name, note);
     if (sql == NULL) defer(res, 1);
 
     char* errmsg = NULL;
@@ -136,50 +106,49 @@ int push_task(sqlite3* db, const char* name, const char* note) {
     if (handle_rc(rc, errmsg)) defer(res, 1);
 
 defer:
-    if (sql != NULL) free(sql);
+    if (sql != NULL) sqlite3_free(sql);
     return res;
 }
 
-/* Delete a task from the `db` obtained by numeric string `id`. Returns non-zero
+/* Delete a task from the `db` obtained by numeric string `s`. Returns non-zero
  * value on error, zero otherwise. */
-int drop_task(sqlite3* db, const char* id) {
+int drop_task(sqlite3* db, const char* s) {
     int res = 0;
-    if (!str_isnumeric(id)) return 1;
+    if (!str_isnumeric(s)) return 1;
 
-    char* fmt = "DELETE FROM tasks WHERE id=%s;";
-    char* sql = prepare_request(fmt, strlen(fmt) + strlen(id) + 1, id);
+    int id = str_toi(s);
+    char* fmt = "DELETE FROM tasks WHERE id=%d;";
+    char* sql = prepare_request(fmt, id);
     if (sql == NULL) defer(res, 1);
     char* errmsg = NULL;
     int rc = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
     if (handle_rc(rc, errmsg)) defer(res, 1);
 
 defer:
-    if (sql != NULL) free(sql);
+    if (sql != NULL) sqlite3_free(sql);
     return res;
 }
 
-/* Change attributes of a task obtained by numeric string `id`. If `mode` is
+/* Change attributes of a task obtained by numeric string `sid`. If `mode` is
  * `AMEND_NAME`, task's name is changed to `s`. If `mode` is `AMEND_NOTE`,
  * tasks's note is changed to `s`. Returns non-zero value on error, zero
  * otherwise. */
-int amend_task(sqlite3* db, int mode, const char* id, const char* s) {
-    if (!str_isnumeric(id)) return 1;
-    if (sanitize(s)) return 1;
+int amend_task(sqlite3* db, int mode, const char* sid, const char* s) {
+    if (!str_isnumeric(sid)) return 1;
     int res = 0;
 
+    int id = str_toi(sid);
     char* sql = NULL;
     char* fmt = NULL;
     switch (mode) {
         case AMEND_NAME:
-            fmt = "UPDATE tasks SET name='%s' WHERE id=%s;";
-            sql = prepare_request(fmt, strlen(fmt) + strlen(s) + strlen(id) + 1,
-                                  s, id);
+            fmt = "UPDATE tasks SET name=%Q WHERE id=%d;";
+            sql = prepare_request(fmt, s, id);
             if (sql == NULL) defer(res, 1);
             break;
         case AMEND_NOTE:
-            fmt = "UPDATE tasks SET note='%s' WHERE id=%s;";
-            sql = prepare_request(fmt, strlen(fmt) + strlen(s) + strlen(id) + 1,
-                                  s, id);
+            fmt = "UPDATE tasks SET note=%Q WHERE id=%d;";
+            sql = prepare_request(fmt, s, id);
             if (sql == NULL) defer(res, 1);
             break;
         default:
@@ -191,6 +160,6 @@ int amend_task(sqlite3* db, int mode, const char* id, const char* s) {
     if (handle_rc(rc, errmsg)) return 1;
 
 defer:
-    if (sql != NULL) free(sql);
+    if (sql != NULL) sqlite3_free(sql);
     return res;
 }

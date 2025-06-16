@@ -70,12 +70,14 @@ int db_init(sqlite3** db, const char* db_name) {
 void push(sqlite3* db) {
     char name[LINE_SIZE + 1] = {0};
     char note[LINE_SIZE_EXT + 1] = {0};
+    char* note_ptr = note;
     while (true) {
         str_readline(name, LINE_SIZE, "Enter a name(skip to abort): ");
         if (str_isempty(name)) break;
         str_readline(note, LINE_SIZE_EXT, "Enter a note(skip for NULL): ");
+        if (str_isempty(note)) note_ptr = NULL;
 
-        if (push_task(db, name, note)) {
+        if (push_task(db, name, note_ptr)) {
             error("Couldn't create task, please check your name and note\n");
             break;
         } else {
@@ -227,10 +229,17 @@ int dispatch_command(Command* cmd) {
 
     switch (cmd->type) {
         case ListCmd:
-            if (list_tasks(db) != 0) defer(rc, 1);
+            if (list_tasks(db) != 0) {
+                error("Couldn't get information about tasks\n");
+                defer(rc, 1);
+            }
             break;
         case InfoCmd:
-            if (info_task(db, cmd->arg) != 0) defer(rc, 1);
+            if (info_task(db, cmd->arg) != 0) {
+                error("Couldn't get information about task with id='%s'\n",
+                      cmd->arg);
+                defer(rc, 1);
+            }
             break;
         case PushCmd:
             push(db);
@@ -242,7 +251,10 @@ int dispatch_command(Command* cmd) {
             drop(db, cmd);
             break;
         case LocalCmd:
-            if (local_db_init() != 0) defer(rc, 1);
+            if (local_db_init() != 0) {
+                error("Couldn't initialize local database\n");
+                defer(rc, 1);
+            }
             break;
         default:
             error("Unexpected command type\n");

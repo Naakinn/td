@@ -23,7 +23,7 @@ void str_readline(char* buf, int limit, const char* prompt) {
 }
 
 /* Returns `true` if all characters of string `s` are those, for which `isgraph`
- * returns non-zero, `false` otherwise. */
+ * returns zero, `false` otherwise. */
 bool str_isempty(const char* s) {
     if (s == NULL) return true;
     for (size_t i = 0; i < strlen(s); ++i) {
