@@ -26,7 +26,7 @@ int locate_db(char** db_pathname) {
     int rc = 0;
     char* td_dir = "/.td";
     char* td_db = "/td_data.db";
-    char cwd[PATH_MAX + 1] = {};
+    char cwd[PATH_MAX] = {};
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
         error("Couldn't get current directory\n");
         defer(rc, 1);
@@ -64,7 +64,9 @@ int locate_db(char** db_pathname) {
 defer:
     return rc;
 }
-/* Create .td directory at the current directory. Returns non-zero on error, and zero otherwise. */
+
+/* Create .td directory at the current directory. Returns non-zero on error, and
+ * zero otherwise. */
 int local_db_init() {
     char cwd[PATH_MAX + 1] = {};
     char* td_dir = "/.td";
