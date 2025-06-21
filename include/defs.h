@@ -12,9 +12,9 @@
 #endif
 
 // configs
-#define LINE_SIZE 40
-#define LINE_SIZE_EXT 200
-#define SQL_SIZE (LINE_SIZE_EXT + LINE_SIZE + 10)
+#define LINE_LEN 40
+#define LINE_LEN_EXT 200
+#define SQL_LEN (LINE_SIZE_EXT + LINE_SIZE + 10)
 #define AMEND_NAME 2
 #define AMEND_NOTE 3
 

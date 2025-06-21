@@ -10,4 +10,7 @@ bool str_isnumeric(const char* s);
 int str_toi(const char* s);
 void str_delim_right(char* s, char d);
 
+void mbstr_readline(char* buf, size_t limit, const char* prompt);
+int mbc_len(char mbc);
+
 #endif
