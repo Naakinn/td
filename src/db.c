@@ -1,4 +1,5 @@
-#include <defs.h>
+#include "db.h"
+
 #include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,10 +7,34 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "defs.h"
+#include "sqlite3.h"
 #include "str.h"
 
-/* Create directory with read-write owner permissions specified by `pathname`.
- * Returns non-zero value on error, and zero otherwise. */
+/* Check sqlite3 return code `rc`. Prints error message if error occurs. Return
+ * non-zero on error, zero otherwise. */
+int handle_rc(int rc, sqlite3* db) {
+    if (rc != SQLITE_OK) {
+        error("Sqlite3 error: %s\n", sqlite3_errmsg(db));
+        return 1;
+    }
+    return 0;
+}
+
+/* Check sqlite3 return code `rc` after calling `sqlite3_exec`(and other
+ * functions that give back `errmsg` on error). Print error message `errmsg` and
+ * free it if error occurs. Return non-zero in error, zero otherwise. */
+int handle_exec_rc(int rc, char* errmsg) {
+    if (rc != SQLITE_OK) {
+        error("Sqlite3 error: %s\n", errmsg);
+        sqlite3_free(errmsg);
+        return 1;
+    }
+    return 0;
+}
+
+/* Create directory with read-write owner permissions specified by
+ * `pathname`. Returns non-zero value on error, and zero otherwise. */
 int create_dir(const char* pathname) {
     if (mkdir(pathname, S_IRUSR + S_IWUSR) != 0) {
         error("Couldn't create directory '%s'\n", pathname);

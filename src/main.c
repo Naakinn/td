@@ -1,6 +1,5 @@
 #include <getopt.h>
 #include <locale.h>
-#include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -8,6 +7,7 @@
 
 #include "db.h"
 #include "defs.h"
+#include "sqlite3.h"
 #include "str.h"
 #include "task.h"
 
@@ -47,12 +47,9 @@ int confirm(const char* prompt) {
 }
 
 int db_init(sqlite3** db, const char* db_name) {
-    int rc = sqlite3_open(db_name, db);
-    if (rc != SQLITE_OK) {
-        error("Sqlite3 error: %s\n", sqlite3_errmsg(*db));
-        sqlite3_close(*db);
-        return 1;
-    }
+    int rc = sqlite3_open_v2(db_name, db,
+                             SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+    if (handle_rc(rc, *db)) return 1;
     char* sql =
         "CREATE TABLE IF NOT EXISTS tasks"
         "(id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -60,12 +57,7 @@ int db_init(sqlite3** db, const char* db_name) {
         "note TEXT);";
     char* errmsg = NULL;
     rc = sqlite3_exec(*db, sql, NULL, NULL, &errmsg);
-    if (rc != SQLITE_OK) {
-        error("Sqlite3 error: %s\n", errmsg);
-        sqlite3_free(errmsg);
-        return 1;
-    }
-    return 0;
+    return handle_exec_rc(rc, errmsg);
 }
 
 void push(sqlite3* db) {

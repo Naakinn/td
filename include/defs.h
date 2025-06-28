@@ -4,17 +4,21 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// developer's convenience
+// For convenience
 #ifdef __GNUC__
 #define UNUSED(x) UNUSED_##x __attribute__((__unused__))
 #else
 #define UNUSED(x) UNUSED_##x
 #endif
 
-// configs
+// Limits
 #define LINE_LEN 40
 #define LINE_LEN_EXT 200
-#define MB_MAX 4 // 4 bytes in UTF-8
+
+// 4 bytes in UTF-8
+#define MB_MAX 4
+
+// For amend_task
 #define AMEND_NAME 2
 #define AMEND_NOTE 3
 
@@ -38,7 +42,7 @@ struct Config {
     bool confirm;
 };
 
-// error output
+// Error handling
 #ifndef NDEBUG
 #define error(format, ...)                                          \
     fprintf(stderr, "td: (%s:%d) " format, __FILE_NAME__, __LINE__, \
