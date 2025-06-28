@@ -68,13 +68,13 @@ int locate_db(char** db_pathname) {
     while (true) {
         if (stat(cwd, &st) == -1) {
             // move upwards
-            str_delim_right(cwd, '/');
+            mbstr_delim_right(cwd, '/');
             if (strcmp(cwd, home) == 0) {
                 // not found
                 strncat(cwd, td_dir, strlen(td_dir));
                 break;
             }
-            str_delim_right(cwd, '/');
+            mbstr_delim_right(cwd, '/');
             strncat(cwd, td_dir, strlen(td_dir));
         } else {
             // found

@@ -12,7 +12,7 @@
 #include "task.h"
 
 // change this on every release((
-#define VERSION "v.1.1.1"
+#define VERSION "v1.2.0"
 
 static struct Config gconfig = {.confirm = true};
 
@@ -20,9 +20,10 @@ void help() {
     // clang-format off
     printf("Usage: td [options]\n");
     printf("Simple ToDo task manager. With no command lists all tasks.\n");
-    printf("Allowed characters in tasks' names and notes are 'a-zA-Z,.<space>&!'\n");
     printf("td relies on task database, which is by default located in $HOME/.td directory. "
-            "When td is invoked, it recursively finds nearest to the current directory task database.\n\n");
+            "When td is invoked, it recursively finds nearest to the current directory task database.\n");
+    printf("Starting from version v1.2.0 td supports UTF-8 string format. The only exception is confirmation. "
+            "See --no-confirm below.\n\n");
     printf("COMMANDS:\n");
     printf("\t-p --push Push a task to database.\n");
     printf("\t-i --info <ID> Get information about specific task, such as note.\n");
@@ -38,7 +39,9 @@ void help() {
 
 int confirm(const char* prompt) {
     char choice[2] = {};
+    // cause we accept only 1 byte. mbstr_readline won't take any effect
     str_readline(choice, 1, prompt);
+    // str_isempty will fail on incopmlete UTF-8 character
     if (str_isempty(choice)) return 1;
     if (choice[0] == 'y' || choice[0] == 'Y')
         return 0;
@@ -61,14 +64,14 @@ int db_init(sqlite3** db, const char* db_name) {
 }
 
 void push(sqlite3* db) {
-    char name[LINE_LEN + 1] = {0};
-    char note[LINE_LEN_EXT + 1] = {0};
+    char name[LINE_LEN * MB_MAX + 1] = {0};
+    char note[LINE_LEN_EXT * MB_MAX + 1] = {0};
     char* note_ptr = note;
     while (true) {
-        str_readline(name, LINE_LEN, "Enter a name(skip to abort): ");
-        if (str_isempty(name)) break;
-        str_readline(note, LINE_LEN_EXT, "Enter a note(skip for NULL): ");
-        if (str_isempty(note)) note_ptr = NULL;
+        mbstr_readline(name, LINE_LEN, "Enter a name(skip to abort): ");
+        if (mbstr_isempty(name)) break;
+        mbstr_readline(note, LINE_LEN_EXT, "Enter a note(skip for NULL): ");
+        if (mbstr_isempty(note)) note_ptr = NULL;
 
         if (push_task(db, name, note_ptr)) {
             error("Couldn't create task, please check your name and note\n");
@@ -94,7 +97,7 @@ void amend(sqlite3* db, Command* cmd) {
 
         if (choice[0] == 'a' || choice[0] == 'A') {
             char name[LINE_LEN + 1] = {0};
-            str_readline(name, LINE_LEN, "New name: ");
+            mbstr_readline(name, LINE_LEN, "New name: ");
 
             if (gconfig.confirm) {
                 if (confirm("Amend task? (y/n) ") != 0) return;
@@ -109,7 +112,7 @@ void amend(sqlite3* db, Command* cmd) {
 
         } else if (choice[0] == 'o' || choice[0] == 'O') {
             char note[LINE_LEN_EXT + 1] = {0};
-            str_readline(note, LINE_LEN_EXT, "New note: ");
+            mbstr_readline(note, LINE_LEN_EXT, "New note: ");
 
             if (gconfig.confirm) {
                 if (confirm("Amend task? (y/n) ") != 0) return;

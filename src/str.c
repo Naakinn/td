@@ -136,13 +136,15 @@ int mbc_len(char mbc) {
 }
 
 /* Returns `true` if all characters of multibyte UTF-8 string `s` are those, for
- * which `iswgraph` returns zero, `false` otherwise. */
+ * which `iswgraph` returns zero, `false` otherwise. Returns false if any
+ * invalid UTF-8 character occurs. */
 bool mbstr_isempty(const char* s) {
     if (s == NULL) return true;
     const char* end = s + strlen(s);
     while (s < end) {
         wchar_t wc;
         int bytes = mbc_len(*s);
+        if (bytes == -1) return false;
         mbtowc(&wc, s, end - s);
         if (iswgraph(wc) != 0) return false;
         s += bytes;

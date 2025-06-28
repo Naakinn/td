@@ -40,8 +40,8 @@ defer:
  * occurs, zero otherwise. */
 int info_task(sqlite3* db, const char* id) {
     int res = 0;
-    if (str_isempty(id)) return 0;
-    if (!str_isnumeric(id)) return 1;
+    if (mbstr_isempty(id)) return 0;
+    if (!mbstr_isnumeric(id)) return 1;
 
     sqlite3_stmt* stmt;
     const char* sql = "SELECT id, name, note FROM tasks WHERE id=?1;";
@@ -101,7 +101,7 @@ defer:
  * value on error, zero otherwise. */
 int drop_task(sqlite3* db, const char* id) {
     int res = 0;
-    if (!str_isnumeric(id)) return 1;
+    if (!mbstr_isnumeric(id)) return 1;
 
     sqlite3_stmt* stmt;
     char* sql = "DELETE FROM tasks WHERE id=?1;";
@@ -127,7 +127,7 @@ defer:
  * otherwise. */
 int amend_task(sqlite3* db, int mode, const char* id, const char* s) {
     int res = 0;
-    if (!str_isnumeric(id)) return 1;
+    if (!mbstr_isnumeric(id)) return 1;
 
     sqlite3_stmt* stmt;
     char* sql = NULL;
